@@ -468,8 +468,40 @@ def build_upload_collection(files: list[tuple[str, bytes]], session_id: str):
     return collection, status
 
 
+_ACRONYMS = {
+    "rag": "RAG", "ai": "AI", "iot": "IoT", "llm": "LLM", "llms": "LLMs",
+    "nlp": "NLP", "ml": "ML", "sgd": "SGD", "evor": "EVOR", "fair": "FAIR",
+}
+_SMALL_WORDS = {"a", "an", "and", "as", "at", "by", "for", "from", "in", "of",
+                "on", "or", "the", "to", "with", "vs"}
+
+
+def display_name(filename: str) -> str:
+    """
+    Turn a file name into a readable title, e.g.
+    '2304.04780v1_a_review_on_explainable_ai.pdf' -> 'A Review on Explainable AI'.
+    Names that already look like titles are left alone.
+    """
+    stem = Path(filename).stem
+    stem = re.sub(r"^\d{4}\.\d{4,5}v\d+_", "", stem)          # arXiv id
+    stem = re.sub(r"^[a-z]+_\d{7}v\d+_", "", stem)             # old arXiv id
+    stem = re.sub(r"^novel_\d+_", "", stem)                     # Gutenberg id
+    if "_" not in stem and not stem.islower():
+        return stem  # already a readable title, e.g. "Attention Is All You Need"
+    words = [w for w in re.split(r"[_\s]+", stem) if w]
+    titled = []
+    for i, word in enumerate(words):
+        if word in _ACRONYMS:
+            titled.append(_ACRONYMS[word])
+        elif i > 0 and word in _SMALL_WORDS:
+            titled.append(word)
+        else:
+            titled.append(word.capitalize())
+    return " ".join(titled)
+
+
 def retrieve(collection, query: str, top_k: int = TOP_K) -> list[dict]:
-    """Return [{text, source, page}] for the top_k nearest chunks."""
+    """Return [{text, source, title, page}] for the top_k nearest chunks."""
     results = collection.query(query_texts=[query], n_results=top_k)
     documents = results["documents"][0]
     metadatas = results["metadatas"][0]
@@ -478,6 +510,7 @@ def retrieve(collection, query: str, top_k: int = TOP_K) -> list[dict]:
         {
             "text": doc,
             "source": meta.get("source", "unknown"),
+            "title": display_name(meta.get("source", "unknown")),
             "page": meta.get("page", "-"),
             "distance": dist,
         }
@@ -525,7 +558,7 @@ def grade_chunks(query: str, chunks: list[dict]) -> tuple[list[int], str | None]
     which is what makes free-tier rate limits workable for a public demo.
     """
     numbered = "\n\n".join(
-        f"[{i}] (source: {c['source']}, page {c['page']})\n{c['text']}"
+        f"[{i}] (source: {c['title']}, page {c['page']})\n{c['text']}"
         for i, c in enumerate(chunks)
     )
     raw = chat(
@@ -575,7 +608,9 @@ def rewrite_query(original_query: str, queries_tried: list[str]) -> str:
 
 ANSWER_SYSTEM = (
     "You are a careful assistant. Answer the user's question using ONLY the provided "
-    "context. Cite the source filename and page for each claim, like [report.pdf p.3]. "
+    "context. Cite the document title and page for each claim, like "
+    "[Attention Is All You Need, p.3]. Write in clear, plain language that a "
+    "non-expert can follow. "
     "If the context does not fully cover the question, say so explicitly rather than "
     "filling the gap from your own knowledge. "
     "Write any mathematical notation as LaTeX wrapped in $...$ for inline math or "
@@ -585,7 +620,7 @@ ANSWER_SYSTEM = (
 
 def answer_stream(query: str, relevant_chunks: list[dict]) -> Iterator[str]:
     context = "\n\n---\n\n".join(
-        f"(source: {c['source']}, page {c['page']})\n{c['text']}" for c in relevant_chunks
+        f"(source: {c['title']}, page {c['page']})\n{c['text']}" for c in relevant_chunks
     )
     yield from chat_stream(
         [
