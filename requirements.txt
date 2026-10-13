@@ -1,0 +1,19 @@
+# Web UI
+streamlit>=1.40
+
+# Hosted LLM inference (free tier, no credit card)
+groq>=0.11
+
+# Vector store. Chroma ships a bundled ONNX all-MiniLM-L6-v2 embedder, so we
+# deliberately do NOT install sentence-transformers/torch here — that would add
+# ~800MB and push the app past free-tier memory limits.
+chromadb>=0.5
+onnxruntime>=1.17
+
+# Document loaders
+pypdf>=4.0
+python-docx>=1.1
+pandas>=2.0
+openpyxl>=3.1
+
+# For local Ollama runs and the terminal version, install requirements-local.txt instead.

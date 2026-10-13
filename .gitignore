@@ -1,0 +1,55 @@
+# ── Downloaded data (don't version hundreds of PDFs) ──────────────
+*.pdf
+
+# ── Vector store / databases ──────────────────────────────────────
+# Keep the chroma_db folder in the repo but ignore everything inside it.
+# (paired with chroma_db/.gitkeep)
+chroma_db/*
+!chroma_db/.gitkeep
+chroma/
+.chroma/
+*.sqlite3
+*.sqlite
+
+# ── JSON (includes manifest.json) ─────────────────────────────────
+# If you have JSON you DO want tracked, add an exception, e.g.:
+#   !config.json
+*.json
+
+# Keep the docs folder in the repo but ignore everything inside it.
+# (paired with docs/.gitkeep below)
+docs/*
+!docs/.gitkeep
+
+# ── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# ── Editors / OS ──────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ── Misc ──────────────────────────────────────────────────────────
+*.log
+.ipynb_checkpoints/
+Questions.txt
+
+# ── Web app ───────────────────────────────────────────────────────
+# Groq API key lives here locally — never commit it
+.streamlit/secrets.toml
+# Small public demo corpus IS committed (overrides *.pdf above)
+!demo_docs/
+!demo_docs/*.pdf

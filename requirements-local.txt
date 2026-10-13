@@ -1,0 +1,5 @@
+# Local / offline setup: everything the web app needs, plus Ollama and
+# sentence-transformers for the terminal version (rag_pipeline.py).
+-r requirements.txt
+ollama>=0.3.0
+sentence-transformers>=3.0.0
