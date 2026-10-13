@@ -1,0 +1,16 @@
+# Visual theme for the app. Committed to the repo (unlike secrets.toml).
+[theme]
+base = "light"
+primaryColor = "#3B6FD8"
+backgroundColor = "#E4E7EB"
+secondaryBackgroundColor = "#D7DBE1"
+textColor = "#1F2937"
+font = "sans serif"
+
+[client]
+# Hide developer options from the menu for visitors.
+toolbarMode = "minimal"
+
+[server]
+# Matches the app's own per-file upload limit.
+maxUploadSize = 10
