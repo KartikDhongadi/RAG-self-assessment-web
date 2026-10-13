@@ -7,7 +7,7 @@ It comes in two versions:
 - **Web app** (`app.py`): Streamlit UI that shows each retrieval round, which chunks were judged relevant or rejected, query rewrites and refusals. Uses Groq for the LLM, so it can be hosted for free. Visitors can also upload their own documents.
 - **Terminal version** (`rag_pipeline.py`): the fully local pipeline using Ollama. Documented below.
 
-**Live demo:** _add your Streamlit URL here_
+**Live demo:** https://rag-self-assessment-web.streamlit.app
 
 ## Web app
 
