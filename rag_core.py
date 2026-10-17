@@ -500,9 +500,18 @@ def display_name(filename: str) -> str:
     return " ".join(titled)
 
 
-def retrieve(collection, query: str, top_k: int = TOP_K) -> list[dict]:
-    """Return [{text, source, title, page}] for the top_k nearest chunks."""
-    results = collection.query(query_texts=[query], n_results=top_k)
+def retrieve(
+    collection, query: str, top_k: int = TOP_K, source: str | None = None
+) -> list[dict]:
+    """
+    Return [{text, source, title, page, distance}] for the top_k nearest chunks.
+
+    If `source` (a file name) is given, only that document is searched.
+    """
+    kwargs = {"query_texts": [query], "n_results": top_k}
+    if source:
+        kwargs["where"] = {"source": source}
+    results = collection.query(**kwargs)
     documents = results["documents"][0]
     metadatas = results["metadatas"][0]
     distances = results.get("distances", [[None] * len(documents)])[0]
@@ -516,6 +525,70 @@ def retrieve(collection, query: str, top_k: int = TOP_K) -> list[dict]:
         }
         for doc, meta, dist in zip(documents, metadatas, distances)
     ]
+
+
+# ---------------------------------------------------------------------------
+# Document-level tools (used by the agent modes)
+# ---------------------------------------------------------------------------
+
+def list_documents(collection) -> list[dict]:
+    """
+    Every document in the collection as [{file, title, chunks}], sorted by title.
+    Lets an agent see what's in the library before deciding where to search.
+    """
+    metadatas = collection.get(include=["metadatas"])["metadatas"] or []
+    counts: dict[str, int] = {}
+    for meta in metadatas:
+        name = (meta or {}).get("source", "unknown")
+        counts[name] = counts.get(name, 0) + 1
+    docs = [
+        {"file": name, "title": display_name(name), "chunks": n}
+        for name, n in counts.items()
+    ]
+    return sorted(docs, key=lambda d: d["title"].lower())
+
+
+def _words(text: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", text.lower())) - _SMALL_WORDS
+
+
+def find_document(collection, name: str) -> str | None:
+    """
+    Match a document name written by an agent (a title, a file name, or a close
+    paraphrase like "attention is all you need paper") to an indexed file name.
+    Returns None when nothing matches well enough, so the agent can be told so.
+    """
+    import difflib
+
+    docs = list_documents(collection)
+    query = name.strip().lower()
+    if not query or not docs:
+        return None
+
+    # 1. Exact title or file name.
+    for d in docs:
+        if query in (d["title"].lower(), d["file"].lower(), Path(d["file"]).stem.lower()):
+            return d["file"]
+
+    # 2. Close spelling of a title.
+    by_title = {d["title"].lower(): d["file"] for d in docs}
+    close = difflib.get_close_matches(query, list(by_title), n=1, cutoff=0.6)
+    if close:
+        return by_title[close[0]]
+
+    # 3. Best word overlap, if it covers most of what the agent wrote.
+    query_words = _words(query) - {"paper", "document", "book", "pdf", "file", "novel"}
+    if not query_words:
+        return None
+    best, best_score = None, 0.0
+    for d in docs:
+        overlap = len(query_words & _words(d["title"]))
+        score = overlap / len(query_words)
+        if score > best_score:
+            best, best_score = d, score
+    if best and best_score >= 0.6:
+        return best["file"]
+    return None
 
 
 # ---------------------------------------------------------------------------
